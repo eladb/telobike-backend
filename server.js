@@ -31,6 +31,7 @@ var last_read_status = {
 };
 
 var stations = {};
+var last_stations = [];
 
 function render_stations(callback) {
   callback = callback || function() {};
@@ -93,6 +94,7 @@ function render_stations(callback) {
 
 function upload_to_s3(stations, callback) {
   var array = Object.keys(stations).map(function(key) { return stations[key] });
+  last_stations = array;
   var params = { Key: 'tlv/stations.json', Body: JSON.stringify(array, true, 2), ACL: 'public-read' };
   return s3bucket.upload(params, callback);
 }
@@ -118,11 +120,23 @@ setInterval(render_stations, 30*1000); // update station info every 30 seconds
 render_stations();
 
 function get_tlv_stations(req, res) {
-  return res.redirect(s3_url_prefix + '/tlv/stations.json');
+  return res.send(last_stations);
 }
 
 function get_tlv_city(req, res) {
-  return res.redirect(s3_url_prefix + '/tlv/city.json');
+  return res.send({
+    "city": "tlv",
+    "city_center": "32.0664,34.7779",
+    "city_name": "תל-אביב יפו",
+    "city_name.en": "Tel-Aviv",
+    "info_url": "http://telobike.citylifeapps.com/static/en/tlv.html",
+    "info_url_he": "http://telobike.citylifeapps.com/static/he/tlv.html",
+    "last_update": "2011-06-15 18:47:50.982111",
+    "mail": "info@fsm-tlv.com",
+    "mail_tags": "This problem was reported via telobike",
+    "service_name": "תל-אופן",
+    "service_name.en": "Tel-o-Fun"
+  });
 }
 
 server.get('/', function(req, res) {
