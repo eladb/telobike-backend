@@ -52,8 +52,7 @@ function render_stations(callback) {
     if (err || !updated_stations) {
       if (!err) err = new Error('stations array is empty');
       last_read_status.api = 'Error: ' + err.message;
-      var body = err.body || err;
-      logging.error('ERROR: unable to read telofun stations:', body);
+      logging.error('ERROR: unable to read telofun stations:', err.message);
       return callback(err);
     }
 
@@ -153,18 +152,18 @@ server.get('/tlv/stations', get_tlv_stations);
 server.get('/cities/tlv', get_tlv_city);
 
 server.get('/status', function(req, res) {
-  res.send(last_read_status);
-});
-
-server.get('/ping', function(req, res) {
   return telofun_api(function(err, stations) {
     if (err) {
       res.status(500);
-      return res.send({ error: err });
+      return res.send({ error: err.message });
     }
 
     return res.send('OK');
   });
+});
+
+server.get('/ping', function(req, res) {
+  res.send(last_read_status);
 });
 
 server.post('/push', function(req, res, next) {
