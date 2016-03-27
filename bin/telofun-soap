@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-var load_stations = require('../telofun-api');
+var load_stations = require('../lib/telofun-api');
 
 load_stations(function(err, stations) {
   if (err) console.error(err);
