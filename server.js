@@ -9,14 +9,16 @@ var telofun_mapper = require('./lib/telofun-mapper');
 var AWS = require('aws-sdk');
 var async = require('async');
 
-AWS.config.region = 'eu-west-1';
+// configuration
+AWS.config.region = process.env.TELOBIKE_AWS_REGION || 'eu-west-1';
+var S3_BUCKET     = process.env.TELOBIKE_S3_BUCKET  || 'telobike';
 
-var s3bucket = new AWS.S3({ params: { Bucket: 'telobike' } });
+var s3bucket = new AWS.S3({ params: { Bucket: S3_BUCKET } });
 
 console.log('telobike server is running...');
 
 var overrides_url = 'https://docs.google.com/spreadsheets/d/1qjbQfj2vDWc569PIXJ-i8-2uLQk3KC1P4mz3bpGUJxI/pub?output=csv';
-var s3_url_prefix = 'https://s3-eu-west-1.amazonaws.com/telobike';
+var s3_url_prefix = 'https://s3-eu-west-1.amazonaws.com/' + S3_BUCKET;
 
 server.use(express.logger());
 server.use(express.methodOverride());
@@ -59,7 +61,7 @@ function render_stations(callback) {
     var mapped_stations = updated_stations.map(telofun_mapper);
 
     // update cached stations
-    stations = { };    
+    stations = { };
     mapped_stations.forEach(function(s) {
       if(s.IsActive !== '0'){
         stations[s.sid] = s;
@@ -112,7 +114,7 @@ function merge_overrides(stations, all_overrides) {
           s[k] = val;
         }
       }
-    }  
+    }
   }
 }
 
