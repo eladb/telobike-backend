@@ -52,7 +52,8 @@ function render_stations(callback) {
     if (err || !updated_stations) {
       if (!err) err = new Error('stations array is empty');
       last_read_status.api = 'Error: ' + err.message;
-      logging.error('ERROR: unable to read telofun stations:', err);
+      var body = err.body || err;
+      logging.error('ERROR: unable to read telofun stations:', body);
       return callback(err);
     }
 
