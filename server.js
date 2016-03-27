@@ -28,11 +28,9 @@ var last_read_status = {
   overrides: 'unknown',
 };
 
-var stations = {};
-var last_stations = [];
+var stations = { };
 
-function render_stations(callback) {
-  callback = callback || function() {};
+function read_stations() {
 
   logging.info('reading station information from tel-o-fun');
 
@@ -47,7 +45,7 @@ function render_stations(callback) {
       if (!err) err = new Error('stations array is empty');
       last_read_status.api = 'Error: ' + err.message;
       logging.error('ERROR: unable to read telofun stations:', err.message);
-      return callback(err);
+      return;
     }
 
     logging.info(updated_stations.length + ' stations retrieved');
@@ -56,14 +54,18 @@ function render_stations(callback) {
     // map stations from tel-o-fun protocol to tel-o-bike protocol
     var mapped_stations = updated_stations.map(telofun_mapper);
 
-    // update cached stations
-    stations = { };
+    // convert to hash
+    new_stations = { };
     mapped_stations.forEach(function(s) {
-      if(s.IsActive !== '0'){
-        stations[s.sid] = s;
+      // skip inactive stations
+      if (s.IsActive === '0') {
+        return;
       }
+
+      new_stations[s.sid] = s;
     });
 
+    // read overrides from google sheets
     return csvdb(overrides_url, function(err, all_overrides) {
       if (err) {
         last_read_status.overrides = 'Error: ' + err.message;
@@ -72,10 +74,13 @@ function render_stations(callback) {
         last_read_status.overrides = 'Success. Loaded ' + Object.keys(all_overrides).length.toString() + ' overrides';
 
         // merge overrides
-        merge_overrides(stations, all_overrides);
+        merge_overrides(new_stations, all_overrides);
       }
 
-      return callback(null, stations);
+      // update cache
+      stations = new_stations;
+
+      return;
     });
   });
 }
@@ -97,11 +102,11 @@ function merge_overrides(stations, all_overrides) {
   }
 }
 
-setInterval(render_stations, 30*1000); // update station info every 30 seconds
-render_stations();
+setInterval(read_stations, 30*1000); // update station info every 30 seconds
+read_stations();
 
 function get_tlv_stations(req, res) {
-  return res.send(last_stations);
+  return res.send(stations);
 }
 
 function get_tlv_city(req, res) {
@@ -129,13 +134,13 @@ server.get('/tlv/stations', get_tlv_stations);
 server.get('/cities/tlv', get_tlv_city);
 
 server.get('/status', function(req, res) {
-  return telofun_api(function(err, stations) {
+  return telofun_api(function(err) {
     if (err) {
       res.status(500);
       return res.send({ error: err.message });
     }
 
-    return res.send('OK');
+    return res.send('Telofun API OK');
   });
 });
 
