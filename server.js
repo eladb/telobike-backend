@@ -11,13 +11,9 @@ var telofun_mapper = require('./lib/telofun-mapper');
 var config         = require('./lib/config');
 var logging        = require('./lib/logging');
 
-
-var s3bucket = new AWS.S3({ params: { Bucket: config.S3_BUCKET } });
-
 logging.info('telobike server is running...');
 
 var overrides_url = 'https://docs.google.com/spreadsheets/d/1qjbQfj2vDWc569PIXJ-i8-2uLQk3KC1P4mz3bpGUJxI/pub?output=csv';
-var s3_url_prefix = 'https://s3-eu-west-1.amazonaws.com/' + config.S3_BUCKET;
 
 var server = express();
 
@@ -30,7 +26,6 @@ var last_read_status = {
   time: 'never',
   api: 'unknown',
   overrides: 'unknown',
-  s3: 'unknown',
 };
 
 var stations = {};
@@ -45,7 +40,6 @@ function render_stations(callback) {
     time: new Date(),
     api: 'pending',
     overrides: 'pending',
-    s3: 'pending',
   };
 
   return telofun_api(function(err, updated_stations) {
@@ -81,26 +75,9 @@ function render_stations(callback) {
         merge_overrides(stations, all_overrides);
       }
 
-      // write stations to S3
-      upload_to_s3(stations, function(err) {
-        if (err) {
-          logging.error('ERROR: upload to s3 failed:', err);
-          last_read_status.s3 = 'Error: ' + err.message;
-        }
-        logging.info('Uploaded to S3');
-        last_read_status.s3 = 'Uploaded';
-      });
-
       return callback(null, stations);
     });
   });
-}
-
-function upload_to_s3(stations, callback) {
-  var array = Object.keys(stations).map(function(key) { return stations[key] });
-  last_stations = array;
-  var params = { Key: 'tlv/stations.json', Body: JSON.stringify(array, true, 2), ACL: 'public-read' };
-  return s3bucket.upload(params, callback);
 }
 
 function merge_overrides(stations, all_overrides) {
