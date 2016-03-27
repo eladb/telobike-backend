@@ -1,26 +1,27 @@
-var express = require('express');
-var path = require('path');
-var logule = require('logule');
-var cors = require('./lib/cors');
-var server = express();
-var csvdb = require('csvdb');
-var telofun_api = require('./lib/telofun-api');
+var express        = require('express');
+var path           = require('path');
+var AWS            = require('aws-sdk');
+var async          = require('async');
+var csvdb          = require('csvdb');
+var morgan         = require('morgan');
+
+var cors           = require('./lib/cors');
+var telofun_api    = require('./lib/telofun-api');
 var telofun_mapper = require('./lib/telofun-mapper');
-var AWS = require('aws-sdk');
-var async = require('async');
+var config         = require('./lib/config');
+var logging        = require('./lib/logging');
 
-// configuration
-AWS.config.region = process.env.TELOBIKE_AWS_REGION || 'eu-west-1';
-var S3_BUCKET     = process.env.TELOBIKE_S3_BUCKET  || 'telobike';
 
-var s3bucket = new AWS.S3({ params: { Bucket: S3_BUCKET } });
+var s3bucket = new AWS.S3({ params: { Bucket: config.S3_BUCKET } });
 
-console.log('telobike server is running...');
+logging.info('telobike server is running...');
 
 var overrides_url = 'https://docs.google.com/spreadsheets/d/1qjbQfj2vDWc569PIXJ-i8-2uLQk3KC1P4mz3bpGUJxI/pub?output=csv';
-var s3_url_prefix = 'https://s3-eu-west-1.amazonaws.com/' + S3_BUCKET;
+var s3_url_prefix = 'https://s3-eu-west-1.amazonaws.com/' + config.S3_BUCKET;
 
-server.use(express.logger());
+var server = express();
+
+server.use(morgan('short', { stream: logging.stream }));
 server.use(express.methodOverride());
 server.use(cors());
 server.use(express.favicon(path.join(__dirname, 'public/img/favicon.png')));
@@ -37,7 +38,8 @@ var last_stations = [];
 
 function render_stations(callback) {
   callback = callback || function() {};
-  logule.trace('reading station information from tel-o-fun');
+
+  logging.info('reading station information from tel-o-fun');
 
   last_read_status = {
     time: new Date(),
@@ -50,11 +52,11 @@ function render_stations(callback) {
     if (err || !updated_stations) {
       if (!err) err = new Error('stations array is empty');
       last_read_status.api = 'Error: ' + err.message;
-      console.error('error: unable to read telofun stations:', err);
+      logging.error('ERROR: unable to read telofun stations:', err);
       return callback(err);
     }
 
-    console.log(updated_stations.length + ' stations retrieved');
+    logging.info(updated_stations.length + ' stations retrieved');
     last_read_status.api = 'Loaded ' + updated_stations.length.toString() + ' stations';
 
     // map stations from tel-o-fun protocol to tel-o-bike protocol
@@ -82,10 +84,10 @@ function render_stations(callback) {
       // write stations to S3
       upload_to_s3(stations, function(err) {
         if (err) {
-          console.error('ERROR: upload to s3 failed:', err);
+          logging.error('ERROR: upload to s3 failed:', err);
           last_read_status.s3 = 'Error: ' + err.message;
         }
-        console.log('Uploaded to S3');
+        logging.info('Uploaded to S3');
         last_read_status.s3 = 'Uploaded';
       });
 
@@ -107,7 +109,7 @@ function merge_overrides(stations, all_overrides) {
 
     var overrides = all_overrides[sid];
     if (overrides) {
-      console.log('found overrides for', sid);
+      logging.info('found overrides for', sid);
       for (var k in overrides) {
         var val = overrides[k];
         if (val) {
@@ -165,15 +167,10 @@ server.get('/ping', function(req, res) {
 });
 
 server.post('/push', function(req, res, next) {
-  console.log('received push token:', req.url);
+  logging.info('received push token:', req.url);
   return res.send('OK');
 });
 
-setInterval(function() {
-  var mb = Math.round(process.memoryUsage().heapTotal / 1024);
-  logule.trace(mb + ' kb');
-}, 2500);
-
 server.listen(process.env.port || 5000);
 
-logule.trace('telobike server started. listening on %s', process.env.port || 5000);
+logging.info('telobike server started. listening on port ' + (process.env.port || 5000));

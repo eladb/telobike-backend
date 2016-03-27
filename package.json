@@ -15,15 +15,16 @@
     "csvdb": "0.0.3",
     "express": "3.0.3",
     "jsdom": "0.2.15",
-    "logule": "0.6.1",
+    "lawgs": "^1.0.2",
     "memory-cache": "0.0.4",
     "memstream": "0.0.1",
     "mkdirp": "0.3.4",
+    "morgan": "^1.7.0",
     "request": "2.9.202",
     "soap": "^0.11.0"
   },
   "scripts": {
-      "start": "node server.js"
+    "start": "node server.js"
   },
   "subdomain": "telobike",
   "devDependencies": {},
