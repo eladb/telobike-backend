@@ -28,7 +28,7 @@ var last_read_status = {
   overrides: 'unknown',
 };
 
-var stations = { };
+var stations = [ ];
 
 function read_stations() {
 
@@ -77,8 +77,8 @@ function read_stations() {
         merge_overrides(new_stations, all_overrides);
       }
 
-      // update cache
-      stations = new_stations;
+      // update cache (array of stations)
+      stations = Object.keys(new_stations).map(k => new_stations[k]);
 
       return;
     });
